@@ -5,6 +5,7 @@
 #include <iostream>
 #include <windows.h>
 #include <string>
+#include "SharedObject.h"
 
 using namespace std;
 #define BUFFER_SIZE 512
@@ -112,16 +113,15 @@ public:
 
 int main()
 {	
-
 	cout << "Synchronous or Asynchronous? (sync, async)" << endl;
 	string sync_attr;
 	cin >> sync_attr;
 	while (!(sync_attr == "sync" || sync_attr == "async") )
 	{
-		wcout << "invalid connection type, valid conections are sync and async" << endl;
+		cout << "invalid connection type, valid conections are sync and async" << endl;
 		cin >> sync_attr;
 	}
-	wcout << "Connecting to pipe..." << endl;
+	cout << "Connecting to pipe..." << endl;
 
 	Client client(sync_attr);
 	
@@ -133,17 +133,26 @@ int main()
 
 	while (1) {
 		char message[BUFFER_SIZE];
+		string buffer;
 		cout << "Enter a message for the server" << endl;
-		cin >> message;
-		bool messageSuccess = client.sendMessage(message);
-		if (!messageSuccess) {
-			cout << "Message not sent." << endl;
+		cin >> buffer;
+		if (buffer == "Close") {
+			client.closeConnection();
+			return 0;
+		}
+		else if (buffer == "SharedObject") {
+			// Create a shared object on the server by passing the appropriate values as messages to the server... Or do we handle this exclusively on the server?
+			// Should we use specific commands to create?  I.e. create... call etc.? That could be reasonable...
+		}
+		else
+		{
+			strcpy_s(message, buffer.c_str());
+			bool messageSuccess = client.sendMessage(message);
+			if (!messageSuccess) {
+				cout << "Message not sent." << endl;
+			}
 		}
 	}
-	client.closeConnection();
-
-	wcout << "Done" << endl;
-
     return 0;
 }
 

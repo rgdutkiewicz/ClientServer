@@ -4,6 +4,7 @@
     <ClCompile Include="C:\Users\Ross\Source\Repos\StreamLabs\StreamLabs\Client\Client.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SharedObject.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\Ross\Source\Repos\StreamLabs\StreamLabs\Client\CMakeLists.txt" />
@@ -12,5 +13,8 @@
     <Filter Include="Source Files">
       <UniqueIdentifier>{D659D985-832D-3965-930A-6434C279E2C9}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SharedObject.h" />
   </ItemGroup>
 </Project>

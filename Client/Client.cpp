@@ -12,16 +12,34 @@ using namespace std;
 
 class Client {
 private:
-	HANDLE pipe;
+	HANDLE pipe = NULL;
+	OVERLAPPED overlap;
 	DWORD  cbRead, cbWritten, dwMode;
 
 public:
 	Client() {
-		pipe = create_pipe_handle("sync");
+		int attempts = 0;
+		while (pipe == NULL && attempts < 10) {
+			pipe = create_pipe_handle("sync");
+			// Retry every 5 seconds
+			if (pipe == NULL) {
+				WaitNamedPipe("\\\\.\\pipe\\server_pipe", 5000);
+			}
+			attempts++;
+		}
 	}
 
 	Client(string mode) {
-		pipe = create_pipe_handle(mode);
+		// Open the pipe instance, retry up to 10 times if necessary.
+		int attempts = 0;
+		while (pipe == NULL && attempts < 10) {
+			pipe = create_pipe_handle(mode);
+			// Retry every 5 seconds
+			if (pipe == NULL) {
+				WaitNamedPipe("\\\\.\\pipe\\server_pipe", 5000);
+			}
+			attempts++;
+		}
 	}
 
 	// Method to create the pipe in either OVERLAPPED mode for asynchronous, or Normal mode for Synchronous
@@ -37,6 +55,8 @@ public:
 				FILE_FLAG_OVERLAPPED, // ASYNC operation
 				NULL
 				);
+			// TODO Create the OVERLAPPED object for asynchronous I/O
+			//overlap = 
 		}
 		else if (sync_attr == "sync")
 		{
@@ -59,13 +79,6 @@ public:
 		if (GetLastError() != ERROR_PIPE_BUSY)
 		{
 			_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
-			return NULL;
-		}
-
-		// All pipe instances are busy, so wait for 20 seconds. 
-		if (!WaitNamedPipe("\\\\.\\pipe\\server_pipe", 20000))
-		{
-			printf("Could not open pipe: 20 second wait timed out.");
 			return NULL;
 		}
 		return NULL;
@@ -93,7 +106,13 @@ public:
 		return fSuccess;
 	}
 
-	bool isOpen() {
+	// Registers an object to the server
+	bool registerObject(SharedObject object) {
+
+		return false;
+	}
+
+	bool isPipeOpen() {
 		if (pipe == NULL) {
 			return false;
 		}
@@ -125,7 +144,7 @@ int main()
 
 	Client client(sync_attr);
 	
-	if (!client.isOpen())
+	if (!client.isPipeOpen())
 	{
 		_tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
 		return -1;
@@ -152,7 +171,13 @@ int main()
 				cout << "Message not sent." << endl;
 			}
 		}
+		/*SharedObject passobject(123, "Ross");
+		char serialized;
+		passobject.Serialize(serialized);
+		bool messageSuccess = client.sendMessage(&serialized);
+		if (!messageSuccess) {
+			cout << "Message not sent." << endl;
+		}*/
 	}
     return 0;
 }
-

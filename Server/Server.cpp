@@ -25,7 +25,7 @@ private:
 int main()
 {
 	STATE objectState = NONE;
-	cout << "Creating an instance of a named pipe..." << endl;
+	std::cout << "Creating an instance of a named pipe..." << endl;
 
 	// Create a pipe to send data
 	HANDLE outbound_pipe = CreateNamedPipe(
@@ -67,23 +67,9 @@ int main()
 		if (success) {
 			string decode_string = buff;
 			// State machine for input handling
-			if (decode_string == "SOBJ" && objectState == NONE) {
-				//change state to ID registration
-				objectState = REGISTER_ID;
-			}
-			else if (objectState == REGISTER_ID) {
-				object_id = stoi(decode_string);
-				objectState = REGISTER_NAME;
-			}
-			else if (objectState == REGISTER_NAME) {
-				object_name = decode_string;
-				cout << "Registered object with id: " << object_id << " and name: " << object_name << endl;
-				obj = SharedObject(object_id, object_name);
-				objectState = NONE;
-			}
-			else if (decode_string == 'GETID' && objectState == NONE) {
-				//issue response
-				cout << "Retrieved id " << obj.getId();
+			if (decode_string.substr(0,4) == "SOBJ") {
+				SharedObject received(decode_string);
+				cout << received.getId() << " " << received.getName() << endl;
 			}
 			else if (objectState == NONE) {
 				printf("%s\n", buff);

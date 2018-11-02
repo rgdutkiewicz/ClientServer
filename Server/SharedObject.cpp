@@ -10,6 +10,19 @@ SharedObject::SharedObject(int id, std::string name) {
 	m_name = name;
 }
 
+SharedObject::SharedObject(std::string serialized) {
+	//SOBJ
+	std::string delimiter = " ";
+	serialized.erase(0, serialized.find(delimiter) + delimiter.length());
+	//id
+	std::string id_string = serialized.substr(0, serialized.find(delimiter));
+	m_id = std::stoi(id_string);
+	serialized.erase(0, serialized.find(delimiter) + delimiter.length());
+	//name
+	m_name = serialized.substr(0, serialized.find(delimiter));
+	serialized.erase(0, serialized.find(delimiter) + delimiter.length());
+}
+
 void SharedObject::setName(std::string name) {
 	m_name = name;
 }
@@ -18,11 +31,11 @@ void SharedObject::setId(int id) {
 	m_id = id;
 }
 
-void SharedObject::Serialize(char& buffer) {
-	char SEPARATOR = '\0';
-	size_t id_size = sizeof(m_id);
-	size_t name_size = sizeof(m_name);
-	buffer = *('SOBJ' + SEPARATOR + id_size + SEPARATOR + m_id + SEPARATOR + name_size + SEPARATOR + m_name.c_str());
+std::string SharedObject::Serialize() {
+	std::string id_string = std::to_string(m_id);
+	std::string name_string = m_name;
+	std::string prefix = "SOBJ";
+	return prefix + " " + id_string + " " + name_string;
 }
 
 int SharedObject::getId() {

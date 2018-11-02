@@ -159,10 +159,6 @@ int main()
 			client.closeConnection();
 			return 0;
 		}
-		else if (buffer == "SharedObject") {
-			// Create a shared object on the server by passing the appropriate values as messages to the server... Or do we handle this exclusively on the server?
-			// Should we use specific commands to create?  I.e. create... call etc.? That could be reasonable...
-		}
 		else
 		{
 			strcpy_s(message, buffer.c_str());
@@ -171,10 +167,10 @@ int main()
 				cout << "Message not sent." << endl;
 			}
 		}
-		/*SharedObject passobject(123, "Ross");
-		char serialized;
-		passobject.Serialize(serialized);
-		bool messageSuccess = client.sendMessage(&serialized);
+		
+		/*SharedObject sobj("SOBJ 12 Ross");
+		strcpy_s(message, sobj.Serialize().c_str());
+		bool messageSuccess = client.sendMessage(message);
 		if (!messageSuccess) {
 			cout << "Message not sent." << endl;
 		}*/

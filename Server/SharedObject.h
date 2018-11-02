@@ -5,9 +5,10 @@ class SharedObject {
 public:
 	SharedObject();
 	SharedObject(int id, std::string name);
+	SharedObject(std::string Serialized);
 	void setName(std::string name);
 	void setId(int id);
-	void Serialize(char& buffer);
+	std::string Serialize();
 	int getId();
 	std::string getName();
 private:

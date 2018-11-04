@@ -14,7 +14,7 @@ SharedObject::SharedObject(int id, std::string name) {
 
 //Deserialize the object
 SharedObject::SharedObject(std::string serialized) {
-	//SOBJ
+	//SOBJ - Start-of-object flag
 	std::string delimiter = " ";
 	serialized.erase(0, serialized.find(delimiter) + delimiter.length());
 	//id

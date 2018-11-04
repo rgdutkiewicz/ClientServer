@@ -106,6 +106,20 @@ public:
 		return fSuccess;
 	}
 
+	string readMessage() {
+		DWORD numRead = 1;
+		char buff[BUFFER_SIZE];
+		bool success = ReadFile(pipe, &buff, BUFFER_SIZE, &numRead, NULL);
+		if (success) {
+			cout << buff << endl;
+		}
+		else
+		{
+			_tprintf(TEXT("ReadFile failed. GLE=%d\n"), GetLastError());
+		}
+		return buff;
+	}
+
 	// Registers an object to the server
 	bool registerObject(SharedObject object) {
 
@@ -150,10 +164,10 @@ int main()
 		return -1;
 	}
 
-	while (1) {
+	//while (1) {
 		char message[BUFFER_SIZE];
 		string buffer;
-		cout << "Enter a message for the server" << endl;
+		/*cout << "Enter a message for the server" << endl;
 		cin >> buffer;
 		if (buffer == "Close") {
 			client.closeConnection();
@@ -166,14 +180,24 @@ int main()
 			if (!messageSuccess) {
 				cout << "Message not sent." << endl;
 			}
-		}
+		}*/
 		
-		/*SharedObject sobj("SOBJ 12 Ross");
+		SharedObject sobj("SOBJ 12 Ross");
 		strcpy_s(message, sobj.Serialize().c_str());
 		bool messageSuccess = client.sendMessage(message);
 		if (!messageSuccess) {
 			cout << "Message not sent." << endl;
-		}*/
-	}
+		}
+		// Retrieve object, then wait for a response.
+		strcpy_s(message, "GET 12");
+		messageSuccess = client.sendMessage(message);
+		if (!messageSuccess) {
+			cout << "Message not sent." << endl;
+		}
+		string received = client.readMessage();
+		cout << received << endl;
+
+
+	//}
     return 0;
 }

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <windows.h>
 #include "SharedObject.h"
+#include <map>
 
 using namespace std;
 #define BUFFER_SIZE 512
@@ -17,10 +18,42 @@ enum STATE {
 	CALL_NAME   = 4
 };
 
-class store {
+// Effectively just a wrapper for a map
+class Storage {
 public:
+	Storage() {} // Empty default constructor, nothing to do
+	SharedObject retrieveObject(int id) {
+		return storageMap.at(id);
+	}
+	void addObject(SharedObject obj) {
+		storageMap.emplace(obj.getId(), obj);
+	}
 private:
+	map<int, SharedObject> storageMap;
 };
+
+bool sendMessage(HANDLE pipe, char message[]) {
+	DWORD cbToWrite;
+	DWORD cbWritten;
+	cbToWrite = (lstrlen(message) + 1)*sizeof(char);
+	_tprintf(TEXT("Sending %d byte message: \"%s\"\n"), cbToWrite, message);
+
+	BOOL fSuccess = WriteFile(
+		pipe,                   // pipe handle 
+		message,			    // message 
+		cbToWrite,              // message length 
+		&cbWritten,             // bytes written 
+		NULL);                  // not overlapped 
+
+	if (!fSuccess)
+	{
+		DWORD Error = GetLastError();
+		_tprintf(TEXT("WriteFile to pipe failed. GLE=%d\n"), GetLastError());
+		return fSuccess;
+	}
+	cout << "Message sent" << endl;
+	return fSuccess;
+}
 
 int main()
 {
@@ -59,19 +92,28 @@ int main()
 	// Wait for a message from the client
 	char buff[BUFFER_SIZE];
 	DWORD numRead = 1;
-	int object_id;
-	string object_name;
-	SharedObject obj;
+	Storage objectStorage;
 	while (1) {
 		bool success = ReadFile(outbound_pipe, &buff, BUFFER_SIZE, &numRead, NULL);
 		if (success) {
 			string decode_string = buff;
-			// State machine for input handling
 			if (decode_string.substr(0,4) == "SOBJ") {
 				SharedObject received(decode_string);
-				cout << received.getId() << " " << received.getName() << endl;
+				objectStorage.addObject(received);
 			}
-			else if (objectState == NONE) {
+			else if (decode_string.substr(0, 3) == "GET") {
+				std::string delimiter = " ";
+				decode_string.erase(0, decode_string.find(delimiter) + delimiter.length());
+				//id
+				std::string id_string = decode_string.substr(0, decode_string.find(delimiter));
+				int id = std::stoi(id_string);
+				decode_string.erase(0, decode_string.find(delimiter) + delimiter.length());
+				SharedObject temp = objectStorage.retrieveObject(id);
+				char message[BUFFER_SIZE];
+				strcpy_s(message, temp.Serialize().c_str());
+				sendMessage(outbound_pipe, message);
+			}
+			else {
 				printf("%s\n", buff);
 			}
 		}

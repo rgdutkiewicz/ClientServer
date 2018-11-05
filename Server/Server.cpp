@@ -6,27 +6,30 @@
 #include <windows.h>
 #include "SharedObject.h"
 #include <map>
+#include <cstdio>
 
 using namespace std;
 #define BUFFER_SIZE 512
-
-enum STATE {
-	NONE = 0,
-	REGISTER_ID = 1,
-	REGISTER_NAME   = 2,
-	CALL_ID = 3,
-	CALL_NAME   = 4
-};
 
 // Effectively just a wrapper for a map
 class Storage {
 public:
 	Storage() {} // Empty default constructor, nothing to do
-	SharedObject retrieveObject(int id) {
-		return storageMap.at(id);
+	// Object retrieval from shared storage
+	SharedObject* retrieveObject(int id) {
+		return &(storageMap.at(id));
 	}
-	void addObject(SharedObject obj) {
-		storageMap.emplace(obj.getId(), obj);
+	// Will fail to add if an entry exists with that ID
+	bool addObject(SharedObject obj) {
+		map<int, SharedObject>::iterator it = storageMap.find(obj.getId());
+		if (it == storageMap.end()) {
+			storageMap.emplace(obj.getId(), obj);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 private:
 	map<int, SharedObject> storageMap;
@@ -57,11 +60,10 @@ bool sendMessage(HANDLE pipe, char message[]) {
 
 int main()
 {
-	STATE objectState = NONE;
 	std::cout << "Creating an instance of a named pipe..." << endl;
 
 	// Create a pipe to send data
-	HANDLE outbound_pipe = CreateNamedPipe(
+	HANDLE server_pipe = CreateNamedPipe(
 		"\\\\.\\pipe\\server_pipe", // name of the pipe
 		PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, // 2-way pipe, read and write
 		PIPE_TYPE_MESSAGE, // Pipe is message-type
@@ -72,7 +74,7 @@ int main()
 		NULL // use default security attributes
 		);
 
-	if (outbound_pipe == NULL || outbound_pipe == INVALID_HANDLE_VALUE) {
+	if (server_pipe == NULL || server_pipe == INVALID_HANDLE_VALUE) {
 		wcout << "Failed to create outbound pipe instance.";
 		system("pause");
 		return 1;
@@ -81,10 +83,10 @@ int main()
 	wcout << "Waiting for a client to connect to the pipe..." << endl;
 
 	// This call blocks until a client process connects to the pipe
-	BOOL result = ConnectNamedPipe(outbound_pipe, NULL);
+	BOOL result = ConnectNamedPipe(server_pipe, NULL);
 	if (!result) {
 		wcout << "Failed to make connection on named pipe." << endl;
-		CloseHandle(outbound_pipe); // close the pipe
+		CloseHandle(server_pipe); // close the pipe
 		system("pause");
 		return 1;
 	}
@@ -92,15 +94,23 @@ int main()
 	// Wait for a message from the client
 	char buff[BUFFER_SIZE];
 	DWORD numRead = 1;
+	//Storage Map for the objects registered with the server
 	Storage objectStorage;
+	
 	while (1) {
-		bool success = ReadFile(outbound_pipe, &buff, BUFFER_SIZE, &numRead, NULL);
+		bool success = ReadFile(server_pipe, &buff, BUFFER_SIZE, &numRead, NULL);
 		if (success) {
 			string decode_string = buff;
 			if (decode_string.substr(0,4) == "SOBJ") {
 				SharedObject received(decode_string);
-				objectStorage.addObject(received);
-				sendMessage(outbound_pipe, TEXT("Generic Success Reply"));
+				bool success = objectStorage.addObject(received);
+				if (success) {
+					sendMessage(server_pipe, "Object registered");
+				}
+				else
+				{
+					sendMessage(server_pipe, "Object already exists at that ID, object not registered.");
+				}
 			}
 			else if (decode_string.substr(0, 3) == "GET") {
 				std::string delimiter = " ";
@@ -109,14 +119,30 @@ int main()
 				std::string id_string = decode_string.substr(0, decode_string.find(delimiter));
 				int id = std::stoi(id_string);
 				decode_string.erase(0, decode_string.find(delimiter) + delimiter.length());
-				SharedObject temp = objectStorage.retrieveObject(id);
+				//retrieve the object from our storage
+				SharedObject* temp = objectStorage.retrieveObject(id);
 				char message[BUFFER_SIZE];
-				strcpy_s(message, temp.Serialize().c_str());
-				sendMessage(outbound_pipe, message);
+				strcpy_s(message, temp->Serialize().c_str());
+				sendMessage(server_pipe, message);
 			}
+			else if (decode_string.substr(0, 6) == "RENAME") {
+				std::string delimiter = " ";
+				decode_string.erase(0, decode_string.find(delimiter) + delimiter.length());
+				//id
+				std::string id_string = decode_string.substr(0, decode_string.find(delimiter));
+				int id = std::stoi(id_string);
+				decode_string.erase(0, decode_string.find(delimiter) + delimiter.length());
+				//id
+				std::string new_name = decode_string.substr(0, decode_string.find(delimiter));
+				decode_string.erase(0, decode_string.find(delimiter) + delimiter.length());
+				//retrieve the object from our storage
+				SharedObject* temp = objectStorage.retrieveObject(id);
+				temp->setName(new_name);
+				sendMessage( server_pipe, TEXT("Renamed object") );
+			}
+			// Generic case, boring old data.
 			else {
-				printf("%s\n", buff);
-				sendMessage(outbound_pipe, TEXT("Generic Success Reply"));
+				sendMessage(server_pipe, TEXT("Message Received"));
 			}
 		}
 		else
@@ -127,7 +153,7 @@ int main()
 	}
 
 	// Close the pipe (automatically disconnects client too)
-	CloseHandle(outbound_pipe);
+	CloseHandle(server_pipe);
 
 	cout << "Done" << endl;
 

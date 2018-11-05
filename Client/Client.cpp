@@ -180,6 +180,13 @@ int main()
 			client.closeConnection();
 			return 0;
 		}
+		else if (((string)message).substr(0, 4) == "HELP") {
+			cout <<
+				"SOBJ <id> <name> - register a new object" << endl <<
+				"RENAME <id> <newname> - change the name of object at given id" << endl <<
+				"GET <id> - retrieve stored object" << endl <<
+				"Close - close connection" << endl;
+		}
 		else
 		{
 			//strcpy_s(message, buffer.c_str());

@@ -84,7 +84,8 @@ public:
 		return NULL;
 	}
 
-	bool sendMessage(char message[]) {
+	// Synchronous I/O, wait for a confirmation response
+	BOOL sendMessageSync(char message[], string& returnMessage) {
 		DWORD cbToWrite;
 		cbToWrite = (lstrlen(message) + 1)*sizeof(char);
 		_tprintf(TEXT("Sending %d byte message: \"%s\"\n"), cbToWrite, message);
@@ -94,7 +95,7 @@ public:
 			message,			    // message 
 			cbToWrite,              // message length 
 			&cbWritten,             // bytes written 
-			NULL);                  // not overlapped 
+			NULL);                  // not overlapped
 
 		if (!fSuccess)
 		{
@@ -103,17 +104,22 @@ public:
 			return fSuccess;
 		}
 		cout << "Message sent" << endl;
+		// Expect a return message upon completion of IO
+		returnMessage = readMessage();
 		return fSuccess;
+	}
+
+	// Used for asynchronous IO, do not expect a return message
+	BOOL sendMessageAsync(char message[]) {
+		// TODO
+		return false;
 	}
 
 	string readMessage() {
 		DWORD numRead = 1;
 		char buff[BUFFER_SIZE];
 		bool success = ReadFile(pipe, &buff, BUFFER_SIZE, &numRead, NULL);
-		if (success) {
-			cout << buff << endl;
-		}
-		else
+		if (!success)
 		{
 			_tprintf(TEXT("ReadFile failed. GLE=%d\n"), GetLastError());
 		}
@@ -148,7 +154,7 @@ int main()
 {	
 	cout << "Synchronous or Asynchronous? (sync, async)" << endl;
 	string sync_attr;
-	cin >> sync_attr;
+	getline(cin, sync_attr);
 	while (!(sync_attr == "sync" || sync_attr == "async") )
 	{
 		cout << "invalid connection type, valid conections are sync and async" << endl;
@@ -156,7 +162,7 @@ int main()
 	}
 	cout << "Connecting to pipe..." << endl;
 
-	Client client(sync_attr);
+	Client client("sync");
 	
 	if (!client.isPipeOpen())
 	{
@@ -164,27 +170,29 @@ int main()
 		return -1;
 	}
 
-	//while (1) {
-		char message[BUFFER_SIZE];
+	while (1) {
+		char message[BUFFER_SIZE] = "";
 		string buffer;
-		/*cout << "Enter a message for the server" << endl;
-		cin >> buffer;
-		if (buffer == "Close") {
+		string returnMessage;
+		cout << "Enter a message for the server ('Close' to close connection)" << endl;
+		cin.getline (message, BUFFER_SIZE);
+		if ( ((string)message).substr(0,5) == "Close" ) {
 			client.closeConnection();
 			return 0;
 		}
 		else
 		{
-			strcpy_s(message, buffer.c_str());
-			bool messageSuccess = client.sendMessage(message);
+			//strcpy_s(message, buffer.c_str());
+			bool messageSuccess = client.sendMessageSync(message, returnMessage);
 			if (!messageSuccess) {
 				cout << "Message not sent." << endl;
 			}
-		}*/
+			cout << returnMessage << endl;
+		}
 		
-		SharedObject sobj("SOBJ 12 Ross");
+		/*SharedObject sobj("SOBJ 12 Ross");
 		strcpy_s(message, sobj.Serialize().c_str());
-		bool messageSuccess = client.sendMessage(message);
+		bool messageSuccess = client.sendMessage(message, returnMessage);
 		if (!messageSuccess) {
 			cout << "Message not sent." << endl;
 		}
@@ -195,9 +203,9 @@ int main()
 			cout << "Message not sent." << endl;
 		}
 		string received = client.readMessage();
-		cout << received << endl;
+		cout << received << endl;*/
 
 
-	//}
+	}
     return 0;
 }

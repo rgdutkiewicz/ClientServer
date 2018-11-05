@@ -100,6 +100,7 @@ int main()
 			if (decode_string.substr(0,4) == "SOBJ") {
 				SharedObject received(decode_string);
 				objectStorage.addObject(received);
+				sendMessage(outbound_pipe, TEXT("Generic Success Reply"));
 			}
 			else if (decode_string.substr(0, 3) == "GET") {
 				std::string delimiter = " ";
@@ -115,6 +116,7 @@ int main()
 			}
 			else {
 				printf("%s\n", buff);
+				sendMessage(outbound_pipe, TEXT("Generic Success Reply"));
 			}
 		}
 		else

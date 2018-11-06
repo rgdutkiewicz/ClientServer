@@ -3,6 +3,8 @@ StreamLabs StreamBase App
 
 The purpose of this project is to create a simple Client/Server interface using NamedPipes to allow sending of data and registration of object from the Client on the Server.
 
+Please note: The binaries for Server and Client can be found under Release in their respective directories.
+
 Requirements:
 
 1.    The client should be able to connect to the server through a NamedPipe
@@ -14,7 +16,7 @@ Requirements:
 7.    The server should be able to register a custom class (w/ related functions, attributes) which can be used by the client (see req-4)
 8.    The server should be able to store the custom objects created by the client for the custom class created in req-7
 
-Assumptions:
+Assumptions and implementation details:
 The Server must be started before the Client, otherwise the Client will not find an open pipe and will exit.
 We do not store trivial data sent to the Server re. req 3.
 The Client interacts with the server through a series of Predefined commands.  Use command HELP to view these commands.

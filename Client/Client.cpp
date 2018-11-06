@@ -20,20 +20,7 @@ public:
 	Client() {
 		int attempts = 0;
 		while (pipe == NULL && attempts < 10) {
-			pipe = create_pipe_handle("sync");
-			// Retry every 5 seconds
-			if (pipe == NULL) {
-				WaitNamedPipe("\\\\.\\pipe\\server_pipe", 5000);
-			}
-			attempts++;
-		}
-	}
-
-	Client(string mode) {
-		// Open the pipe instance, retry up to 10 times if necessary.
-		int attempts = 0;
-		while (pipe == NULL && attempts < 10) {
-			pipe = create_pipe_handle(mode);
+			pipe = create_pipe_handle();
 			// Retry every 5 seconds
 			if (pipe == NULL) {
 				WaitNamedPipe("\\\\.\\pipe\\server_pipe", 5000);
@@ -43,36 +30,24 @@ public:
 	}
 
 	// Method to create the pipe in either OVERLAPPED mode for asynchronous, or Normal mode for Synchronous
-	HANDLE create_pipe_handle(string sync_attr) {
+	HANDLE create_pipe_handle() {
 		HANDLE pipe;
-		if (sync_attr == "async") {
-			pipe = CreateFile(
-				"\\\\.\\pipe\\server_pipe",
-				GENERIC_READ | GENERIC_WRITE, // bidirectional access
-				0,
-				NULL,
-				OPEN_EXISTING,
-				FILE_FLAG_OVERLAPPED, // ASYNC operation
-				NULL
-				);
-			// TODO Create the OVERLAPPED object for asynchronous I/O
-			//overlap = 
-		}
-		else if (sync_attr == "sync")
-		{
-			pipe = CreateFile(
-				"\\\\.\\pipe\\server_pipe",
-				GENERIC_READ | GENERIC_WRITE, // bidirectional access
-				0,
-				NULL,
-				OPEN_EXISTING,
-				FILE_ATTRIBUTE_NORMAL, // Normal, synchronous operation
-				NULL
-				);
-		}
+		pipe = CreateFile(
+			"\\\\.\\pipe\\server_pipe",
+			GENERIC_READ | GENERIC_WRITE, // bidirectional access
+			0,
+			NULL,
+			OPEN_EXISTING,
+			FILE_FLAG_OVERLAPPED, // ASYNC operation
+			NULL
+			);
 		// Break if the pipe handle is valid.
 		if (pipe != INVALID_HANDLE_VALUE)
 		{
+			// Initialize the OVERLAPPED structure if we succeeded in opening a pipe
+			memset(&overlap, 0, sizeof(overlap));
+			overlap.Offset = 4096;
+			overlap.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 			return pipe;
 		}
 		// Exit if an error other than ERROR_PIPE_BUSY occurs. 
@@ -111,8 +86,31 @@ public:
 
 	// Used for asynchronous IO, do not expect a return message
 	BOOL sendMessageAsync(char message[]) {
-		// TODO
-		return false;
+		DWORD cbToWrite;
+		//Remove "ASYNC " from our message
+		char actualMessage[BUFFER_SIZE];
+		strcpy(actualMessage, &(message[6]));
+		cbToWrite = (lstrlen(actualMessage) + 1)*sizeof(char);
+		_tprintf(TEXT("Sending %d byte message: \"%s\"\n"), cbToWrite, actualMessage);
+
+		BOOL fSuccess = WriteFile(
+			pipe,                   // pipe handle 
+			actualMessage,			    // message 
+			cbToWrite,              // message length 
+			&cbWritten,             // bytes written 
+			&overlap);              // overlapped
+		if (!fSuccess)
+		{
+			DWORD Error = GetLastError();
+			_tprintf(TEXT("WriteFile to pipe failed. GLE=%d\n"), GetLastError());
+			return fSuccess;
+		}
+		cout << "Message sending asynchronously." << endl;
+		return fSuccess;
+	}
+
+	bool checkResult() {
+		return GetOverlappedResult(pipe, &overlap, &cbWritten, false);
 	}
 
 	string readMessage() {
@@ -152,17 +150,7 @@ public:
 
 int main()
 {	
-	cout << "Synchronous or Asynchronous? (sync, async)" << endl;
-	string sync_attr;
-	getline(cin, sync_attr);
-	while (!(sync_attr == "sync" || sync_attr == "async") )
-	{
-		cout << "invalid connection type, valid conections are sync and async" << endl;
-		cin >> sync_attr;
-	}
-	cout << "Connecting to pipe..." << endl;
-
-	Client client("sync");
+	Client client;
 	
 	if (!client.isPipeOpen())
 	{
@@ -170,6 +158,7 @@ int main()
 		return -1;
 	}
 
+	bool awaitingResult = false;
 	while (1) {
 		char message[BUFFER_SIZE] = "";
 		string buffer;
@@ -187,14 +176,28 @@ int main()
 				"GET <id> - retrieve stored object" << endl <<
 				"Close - close connection" << endl;
 		}
+		else if (((string)message).substr(0, 5) == "ASYNC") {
+			if (awaitingResult == true) {
+				cout << "ASYNC I/O already in progress, unable to send another message." << endl;
+			}
+			else
+			{
+				awaitingResult = true;
+				bool messageSuccess = client.sendMessageAsync(message);
+			}
+		}
 		else
 		{
-			//strcpy_s(message, buffer.c_str());
 			bool messageSuccess = client.sendMessageSync(message, returnMessage);
 			if (!messageSuccess) {
 				cout << "Message not sent." << endl;
 			}
 			cout << returnMessage << endl;
+		}
+
+		if (awaitingResult && client.checkResult()) {
+			cout << client.readMessage() << endl;
+			awaitingResult = false;
 		}
 		
 		/*SharedObject sobj("SOBJ 12 Ross");

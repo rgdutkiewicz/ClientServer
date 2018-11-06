@@ -17,7 +17,12 @@ public:
 	Storage() {} // Empty default constructor, nothing to do
 	// Object retrieval from shared storage
 	SharedObject* retrieveObject(int id) {
-		return &(storageMap.at(id));
+		if (storageMap.find(id) == storageMap.end()) {
+			return NULL;
+		}
+		else {
+			return &(storageMap.at(id));
+		}
 	}
 	// Will fail to add if an entry exists with that ID
 	bool addObject(SharedObject obj) {
@@ -121,9 +126,15 @@ int main()
 				decode_string.erase(0, decode_string.find(delimiter) + delimiter.length());
 				//retrieve the object from our storage
 				SharedObject* temp = objectStorage.retrieveObject(id);
-				char message[BUFFER_SIZE];
-				strcpy_s(message, temp->Serialize().c_str());
-				sendMessage(server_pipe, message);
+				if (temp == NULL) {
+					sendMessage(server_pipe, TEXT("No object exists with that ID"));
+				}
+				else
+				{
+					char message[BUFFER_SIZE];
+					strcpy_s(message, temp->Serialize().c_str());
+					sendMessage(server_pipe, message);
+				}
 			}
 			else if (decode_string.substr(0, 6) == "RENAME") {
 				std::string delimiter = " ";
@@ -137,8 +148,14 @@ int main()
 				decode_string.erase(0, decode_string.find(delimiter) + delimiter.length());
 				//retrieve the object from our storage
 				SharedObject* temp = objectStorage.retrieveObject(id);
-				temp->setName(new_name);
-				sendMessage( server_pipe, TEXT("Renamed object") );
+				if (temp == NULL) {
+					sendMessage(server_pipe, TEXT("No object exists with that ID"));
+				}
+				else
+				{
+					temp->setName(new_name);
+					sendMessage(server_pipe, TEXT("Renamed object"));
+				}
 			}
 			// Generic case, boring old data.
 			else {

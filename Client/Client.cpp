@@ -199,21 +199,6 @@ int main()
 			cout << client.readMessage() << endl;
 			awaitingResult = false;
 		}
-		
-		/*SharedObject sobj("SOBJ 12 Ross");
-		strcpy_s(message, sobj.Serialize().c_str());
-		bool messageSuccess = client.sendMessage(message, returnMessage);
-		if (!messageSuccess) {
-			cout << "Message not sent." << endl;
-		}
-		// Retrieve object, then wait for a response.
-		strcpy_s(message, "GET 12");
-		messageSuccess = client.sendMessage(message);
-		if (!messageSuccess) {
-			cout << "Message not sent." << endl;
-		}
-		string received = client.readMessage();
-		cout << received << endl;*/
 
 
 	}
